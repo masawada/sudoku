@@ -21,6 +21,8 @@ const SOLUTION =
 
 beforeEach(() => {
   cleanup();
+  localStorage.clear();
+  vi.restoreAllMocks();
   mockGenerate.impl = (difficulty) =>
     generatePuzzle(difficulty as Puzzle['difficulty'], createRng(42));
 });
@@ -97,5 +99,54 @@ describe('App', () => {
     expect(screen.getByText('クリア!')).toBeTruthy();
     await userEvent.click(screen.getByRole('button', { name: 'メニューへ' }));
     expect(screen.getByRole('button', { name: 'イージー' })).toBeTruthy();
+  });
+});
+
+describe('保存と復元', () => {
+  it('進行中のゲームは次の起動時に自動復元される', async () => {
+    const container = await startEasyGame();
+    const cells = [...container.querySelectorAll<HTMLButtonElement>('.cell')];
+    const emptyIndex = cells.findIndex((c) => c.textContent === '');
+    await userEvent.click(cells[emptyIndex]);
+    await userEvent.click(container.querySelector('.numpad-button')!); // 「1」
+
+    cleanup();
+    const { container: restored } = render(<App />);
+    const restoredCells = restored.querySelectorAll<HTMLButtonElement>('.cell');
+    expect(restoredCells).toHaveLength(81);
+    expect(restoredCells[emptyIndex].textContent).toBe('1');
+  });
+
+  it('メニューに戻ると「続きから」で再開できる', async () => {
+    const container = await startEasyGame();
+    const cells = [...container.querySelectorAll<HTMLButtonElement>('.cell')];
+    const emptyIndex = cells.findIndex((c) => c.textContent === '');
+    await userEvent.click(cells[emptyIndex]);
+    await userEvent.click(container.querySelector('.numpad-button')!);
+
+    await userEvent.click(screen.getByRole('button', { name: '← メニュー' }));
+    await userEvent.click(screen.getByRole('button', { name: /続きから/ }));
+    const resumedCells = container.querySelectorAll<HTMLButtonElement>('.cell');
+    expect(resumedCells[emptyIndex].textContent).toBe('1');
+  });
+
+  it('進行中のゲームがあるとき新規開始は確認され、キャンセルできる', async () => {
+    const container = await startEasyGame();
+    const cells = [...container.querySelectorAll<HTMLButtonElement>('.cell')];
+    await userEvent.click(cells.find((c) => c.textContent === '')!);
+    await userEvent.click(container.querySelector('.numpad-button')!);
+    await userEvent.click(screen.getByRole('button', { name: '← メニュー' }));
+
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    await userEvent.click(screen.getByRole('button', { name: 'ハード' }));
+    expect(confirmSpy).toHaveBeenCalled();
+    // キャンセルしたので保存済みゲームが残り、メニューのまま
+    expect(screen.getByRole('button', { name: /続きから/ })).toBeTruthy();
+  });
+
+  it('保存がないときは確認なしで新規開始できる', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm');
+    await startEasyGame();
+    expect(confirmSpy).not.toHaveBeenCalled();
   });
 });
