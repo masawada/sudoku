@@ -1,5 +1,6 @@
 // 手動検証用スクリプト: システムChromeで本番ビルドを駆動してスクリーンショットを撮る
-// サンドボックスでlistenできないため、HTTPサーバの代わりにリクエストを横取りしてdist/から返す
+// 使い方: npm run build && npm i --no-save playwright-core && node scripts/verify-ui.mjs
+// HTTPサーバを立てずにリクエストを横取りしてdist/から返す(サンドボックス環境対策)
 import { readFile } from 'node:fs/promises';
 import { extname, join } from 'node:path';
 import { chromium } from 'playwright-core';
