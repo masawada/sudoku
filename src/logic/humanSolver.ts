@@ -145,7 +145,7 @@ function findHiddenSubset(state: SolverState, k: number, technique: Technique): 
     const activeDigits = DIGITS.filter((d) => digitPositions[d - 1].length > 0);
     if (activeDigits.length <= k) continue;
     for (const combo of combinations(activeDigits.length, k)) {
-      const digits = combo.map((i) => activeDigits[i]);
+      const digits: number[] = combo.map((i) => activeDigits[i]);
       const cellUnion = new Set<number>();
       for (const digit of digits) {
         for (const cell of digitPositions[digit - 1]) cellUnion.add(cell);
