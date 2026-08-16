@@ -21,7 +21,8 @@ export type Technique =
   | 'claiming'
   | 'nakedTriple'
   | 'hiddenTriple'
-  | 'xWing';
+  | 'xWing'
+  | 'xyWing';
 
 /** 難易度ティア。1=イージー級、2=スタンダード級、3=ハード級。 */
 export const TECHNIQUE_TIERS: Record<Technique, 1 | 2 | 3> = {
@@ -34,6 +35,7 @@ export const TECHNIQUE_TIERS: Record<Technique, 1 | 2 | 3> = {
   nakedTriple: 3,
   hiddenTriple: 3,
   xWing: 3,
+  xyWing: 3,
 };
 
 export interface SolverState {
@@ -264,6 +266,49 @@ export function findXWing(state: SolverState): Move | null {
   return null;
 }
 
+/** ピボット{x,y}とピンサー{x,z},{y,z}から、両ピンサーが見える共通セルのzを除去する。 */
+export function findXYWing(state: SolverState): Move | null {
+  const bivalues: number[] = [];
+  for (let cell = 0; cell < state.cands.length; cell++) {
+    if (state.cands[cell]?.size === 2) bivalues.push(cell);
+  }
+  for (const pivot of bivalues) {
+    const [x, y] = [...state.cands[pivot]!];
+    const pivotPeers = peersOf(pivot);
+    for (const a of pivotPeers) {
+      const candsA = state.cands[a];
+      if (candsA?.size !== 2) continue;
+      for (const b of pivotPeers) {
+        if (b <= a) continue;
+        const candsB = state.cands[b];
+        if (candsB?.size !== 2) continue;
+        for (const [p, q] of [
+          [x, y],
+          [y, x],
+        ]) {
+          if (!candsA.has(p) || candsA.has(q)) continue;
+          if (!candsB.has(q) || candsB.has(p)) continue;
+          const [z] = [...candsA].filter((d) => d !== p);
+          const [zb] = [...candsB].filter((d) => d !== q);
+          if (z !== zb) continue;
+          const peersA = new Set(peersOf(a));
+          const eliminations: Elimination[] = [];
+          for (const cell of peersOf(b)) {
+            if (cell === pivot || cell === a) continue;
+            if (peersA.has(cell) && state.cands[cell]?.has(z)) {
+              eliminations.push({ cell, digit: z });
+            }
+          }
+          if (eliminations.length > 0) {
+            return { technique: 'xyWing', type: 'eliminate', eliminations };
+          }
+        }
+      }
+    }
+  }
+  return null;
+}
+
 const FINDERS: ((state: SolverState) => Move | null)[] = [
   findNakedSingle,
   findHiddenSingle,
@@ -274,6 +319,7 @@ const FINDERS: ((state: SolverState) => Move | null)[] = [
   findNakedTriple,
   findHiddenTriple,
   findXWing,
+  findXYWing,
 ];
 
 export interface HumanSolveResult {

@@ -14,6 +14,7 @@ import {
   findNakedTriple,
   findPointing,
   findXWing,
+  findXYWing,
   humanSolve,
 } from './humanSolver';
 
@@ -41,6 +42,7 @@ describe('TECHNIQUE_TIERS', () => {
     expect(TECHNIQUE_TIERS.nakedTriple).toBe(3);
     expect(TECHNIQUE_TIERS.hiddenTriple).toBe(3);
     expect(TECHNIQUE_TIERS.xWing).toBe(3);
+    expect(TECHNIQUE_TIERS.xyWing).toBe(3);
   });
 });
 
@@ -211,6 +213,27 @@ describe('findXWing', () => {
     expect(
       move.eliminations.find((e) => e.cell === 2 || e.cell === 6 || e.cell === 38 || e.cell === 42),
     ).toBeUndefined();
+  });
+});
+
+describe('findXYWing', () => {
+  it('ピボットと2つのピンサーが見える共通セルから共通候補を除去する', () => {
+    const state = createState(emptyGrid());
+    state.cands[0] = new Set([1, 2]); // ピボット(r0c0)
+    state.cands[1] = new Set([1, 3]); // ピンサー(r0c1、行で接続)
+    state.cands[9] = new Set([2, 3]); // ピンサー(r1c0、列で接続)
+    const move = findXYWing(state);
+    expect(move?.technique).toBe('xyWing');
+    if (move?.type !== 'eliminate') throw new Error('unreachable');
+    // 両ピンサーが見えるセル(ブロック0内の10など)から3を除去
+    expect(move.eliminations).toContainEqual({ cell: 10, digit: 3 });
+    expect(move.eliminations.every((e) => e.digit === 3)).toBe(true);
+    // ピボット・ピンサー自身からは除去しない
+    expect(move.eliminations.find((e) => [0, 1, 9].includes(e.cell))).toBeUndefined();
+  });
+
+  it('該当がなければnullを返す', () => {
+    expect(findXYWing(createState(emptyGrid()))).toBeNull();
   });
 });
 
